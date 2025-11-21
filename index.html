@@ -10,6 +10,7 @@
         /* Inter 폰트 사용 */
         body { font-family: 'Inter', sans-serif; background-color: #f7f9fc; }
         .input-field {
+            /* Tailwind 클래스 조합으로 스타일 정의 */
             @apply w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 transition duration-150 ease-in-out;
         }
     </style>
@@ -90,8 +91,11 @@
     </div>
 
     <script>
-        // ✅ 여기에 배포하신 웹 앱 URL을 붙여넣으세요.
-        const WEB_APP_URL = 'https://script.googleusercontent.com/macros/echo?user_content_key=AehSKLh4_gxxDzgG1bCugehs2c2yb9uYGZA-69Vd1w0XORx8y2FSRbO6v0jRS7IYjgRqprtlXrn9xp9xFiuVctK7C3B12ZEcSwk8SUWglNnjq1NJiSnoEa8sbDsChx7RO-YLGMzPjU87GtddkeRrLiKrd1S2Yf59-_-vizSttHmsrr4sF0lwC6X2yDrHRgExNHXE_4ayoLg1VSRB-yEwuLe-BroT8SL99IPTpxf-dHReKjYeWe4qxMqzpxiD-t9mj6z6Wd4cm3Fr6rnG7yDrq1BYfXRIOkuzew&lib=MerK2E9-AkhCl36vftWFCnAySKxpBA-T6';
+        // ====================================================================
+        // ✅ 여기에 배포하신 웹 앱 URL (예: https://script.google.com/macros/s/AKfyc...)을 붙여넣으세요.
+        // 이전에 사용한 긴 URL (user_content_key가 포함된) 대신 영구 URL을 사용해야 합니다.
+        // ====================================================================
+        const WEB_APP_URL = '새로 복사한 영구 웹 앱 URL을 여기에 붙여넣으세요'; 
 
         const form = document.getElementById('submission-form');
         const messageBox = document.getElementById('message-box');
@@ -121,7 +125,7 @@
             submitButton.textContent = isLoading ? '전송 중...' : '데이터 시트에 제출';
         }
 
-        // Exponential backoff with jitter
+        // 지연 및 지터가 있는 Exponential backoff 구현
         async function fetchWithRetry(url, options, maxRetries = 5) {
             for (let i = 0; i < maxRetries; i++) {
                 try {
@@ -129,21 +133,22 @@
                     if (response.ok) {
                         return response;
                     }
-                    // Handle rate limiting (429) or temporary server errors (5xx)
+                    // Apps Script 배포 문제(404, 401 등)는 재시도하지 않습니다.
                     if (response.status === 429 || response.status >= 500) {
                         throw new Error(`Server error or rate limit: ${response.status}`);
                     }
-                    // For other non-OK status codes, treat as permanent error
+                    
+                    // 기타 API 오류 처리
                     const errorText = await response.text();
                     throw new Error(`API Error (${response.status}): ${errorText.substring(0, 100)}...`);
 
                 } catch (error) {
                     if (i === maxRetries - 1) {
-                        // Throw error if it's the last attempt
+                        // 마지막 시도라면 오류 throw
                         throw error;
                     }
 
-                    // Calculate delay with exponential backoff and jitter
+                    // Exponential backoff 및 jitter를 사용한 지연 계산
                     const delay = Math.pow(2, i) * 1000 + Math.random() * 1000;
                     await new Promise(resolve => setTimeout(resolve, delay));
                 }
@@ -156,48 +161,52 @@
             hideMessage();
             toggleLoading(true);
 
+            if (WEB_APP_URL.includes('여기에 붙여넣으세요')) {
+                 showMessage("❌ 오류: 'WEB_APP_URL' 변수에 배포된 Apps Script 주소를 입력하지 않았습니다.", 'error');
+                 toggleLoading(false);
+                 return;
+            }
+
             const formData = new FormData(form);
             const data = {};
             
-            // 폼 데이터를 JSON 객체로 변환
+            // 폼 데이터를 JSON 객체로 변환 (Apps Script의 doPost가 요구하는 형식)
             formData.forEach((value, key) => {
                 data[key] = value;
             });
             
-            // Apps Script에서 요구하는 JSON 형식에 맞춰 'postData'의 contents로 전송
             const postOptions = {
                 method: 'POST',
-                // Apps Script는 'application/json'을 명시적으로 요구하지 않으며, 
-                // body를 text로 파싱하고 JSON.parse(e.postData.contents)로 처리함.
-                // 따라서 Content-Type을 생략하거나 'application/x-www-form-urlencoded'처럼 동작하게 
-                // body에 JSON.stringify(data)를 넣는 것이 가장 안정적입니다.
+                // JSON 데이터를 문자열로 변환하여 body에 넣습니다.
                 body: JSON.stringify(data), 
             };
 
             try {
                 // Fetch 요청 실행
                 const response = await fetchWithRetry(WEB_APP_URL, postOptions);
+                
+                // Apps Script의 응답은 항상 JSON 형식입니다.
                 const result = await response.json();
                 
                 if (result.status === 'SUCCESS') {
                     showMessage(`✅ 성공: 데이터가 Google Sheet에 성공적으로 추가되었습니다. (메시지: ${result.message})`, 'success');
-                    // 선택적으로 폼 초기화
-                    // form.reset(); 
                 } else {
+                    // Apps Script 내부 로직 오류 (예: 시트 이름 오류)
                     showMessage(`❌ 실패: API 처리 중 오류가 발생했습니다. (오류 메시지: ${result.message})`, 'error');
                 }
 
             } catch (error) {
                 console.error("Fetch Error:", error);
-                showMessage(`❌ 전송 실패: 서버 연결 또는 네트워크 오류. 자세한 내용은 콘솔을 확인하세요. (오류: ${error.message})`, 'error');
+                // 네트워크 또는 CORS 문제로 인한 오류
+                showMessage(`❌ 전송 실패: 서버 연결 또는 네트워크 오류. 자세한 내용은 콘솔(F12)을 확인하세요. (오류: ${error.message})`, 'error');
             } finally {
                 toggleLoading(false);
             }
         });
 
-        // 초기 상태 메시지 (API URL이 설정되었음을 안내)
+        // 초기 상태 메시지 (API URL이 설정되지 않았음을 알림)
         document.addEventListener('DOMContentLoaded', () => {
-             showMessage("📌 이 페이지는 테스트용이며, Apps Script 웹 앱 URL이 설정되었습니다. 데이터를 입력하고 '제출'해 보세요.", 'info');
+             showMessage("📌 Apps Script 웹 앱 URL을 'WEB_APP_URL' 변수에 입력한 후 테스트해 주세요.", 'info');
         });
     </script>
 </body>
