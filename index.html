@@ -95,7 +95,7 @@
         // ✅ 여기에 배포하신 웹 앱 URL (예: https://script.google.com/macros/s/AKfyc...)을 붙여넣으세요.
         // 이전에 사용한 긴 URL (user_content_key가 포함된) 대신 영구 URL을 사용해야 합니다.
         // ====================================================================
-        const WEB_APP_URL = '새로 복사한 영구 웹 앱 URL을 여기에 붙여넣으세요'; 
+        const WEB_APP_URL = 'https://script.google.com/macros/s/[여기에 새로 복사한 영구 URL을 붙여넣으세요]/exec'; 
 
         const form = document.getElementById('submission-form');
         const messageBox = document.getElementById('message-box');
@@ -161,8 +161,8 @@
             hideMessage();
             toggleLoading(true);
 
-            if (WEB_APP_URL.includes('여기에 붙여넣으세요')) {
-                 showMessage("❌ 오류: 'WEB_APP_URL' 변수에 배포된 Apps Script 주소를 입력하지 않았습니다.", 'error');
+            if (WEB_APP_URL.includes('[여기에 새로 복사한 영구 URL을 붙여넣으세요]')) {
+                 showMessage("❌ 오류: 'WEB_APP_URL' 변수에 배포된 Apps Script 주소를 입력하지 않았습니다. 1단계 URL 재확인 및 수정 후 다시 시도해 주세요.", 'error');
                  toggleLoading(false);
                  return;
             }
